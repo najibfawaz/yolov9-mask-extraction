@@ -141,6 +141,43 @@ class Annotator:
             colors = torch.tensor(colors, device=im_gpu.device, dtype=torch.float32) / 255.0
             colors = colors[:, None, None]  # shape(n,1,1,3)
             masks = masks.unsqueeze(3)  # shape(n,h,w,1)
+
+            for idx, mask in enumerate(masks):
+                single_mask = mask.squeeze().cpu().numpy() # mask of larger size
+
+                print('single mask shape: ' + str(single_mask.shape))
+                print('masks len: ' + str(len(masks)))
+                
+                resized_mask = cv2.resize(single_mask, (self.im.shape[1], self.im.shape[0])) # mask with right size
+                resized_mask = (resized_mask * 255).astype(np.uint8) # set mask between 0 and 255
+                _, resized_mask = cv2.threshold(resized_mask, 200, 255, cv2.THRESH_BINARY) # set mask to become binary 0/255
+                non_zero_count = np.count_nonzero(resized_mask)
+                print("Number of non-zero values:", non_zero_count)
+
+                cv2.imshow("resized mask", resized_mask.astype(np.uint8))
+                cv2.waitKey(0)
+                
+                masked_image = cv2.bitwise_and(self.im, self.im, mask=resized_mask) # getting the object
+                print('final image shape: ' + str(masked_image.shape))
+
+                masked_pixels = self.im[resized_mask == 255]
+
+                if masked_pixels.size > 0:
+                    average_color = np.mean(masked_pixels, axis=0).astype(np.uint8)
+                else:
+                    average_color = [0, 0, 0]
+
+                # converting from BGR to RGB here
+                average_color_rgb = average_color[::-1]
+                print('masks shape: ' + str(masks.shape))
+                print('new masks shape: ' + str(resized_mask.shape))       
+                print('Average color of the masked object: ' + str(average_color_rgb))
+
+                cv2.imshow("masked image", masked_image.astype(np.uint8))
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
+
+
             masks_color = masks * (colors * alpha)  # shape(n,h,w,3)
 
             inv_alph_masks = (1 - masks * alpha).cumprod(0)  # shape(n,h,w,1)
